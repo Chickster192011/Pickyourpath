@@ -1,7 +1,127 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Hi</title>
+  <meta charset="UTF-8">
+  <title>Pick Your Path Adventure Game</title>
+  <!-- PyScript CSS and JS -->
+  <link rel="stylesheet" href="https://pyscript.net/latest/pyscript.css" />
+  <script defer src="https://pyscript.net/latest/pyscript.js"></script>
+  <!-- Nice CSS styling -->
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f0f8ff;
+      color: #333;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      color: #4CAF50;
+    }
+    #game {
+      max-width: 600px;
+      margin: 20px auto;
+      padding: 20px;
+      background-color: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    button {
+      margin: 5px;
+      padding: 10px 15px;
+      font-size: 16px;
+      border: none;
+      border-radius: 5px;
+      background-color: #4CAF50;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    p {
+      font-size: 18px;
+      line-height: 1.5;
+    }
+  </style>
 </head>
-<body>Im fat</body>
+<body>
+  <h1>Pick Your Path Adventure Game</h1>
+  <div id="game"></div>
+  
+  <py-script>
+from js import document
+
+# Define the game states and choices
+game = {
+    "start": {
+        "text": "You are in a dark forest. You see two paths. One leads left, one leads right. Which do you choose?",
+        "options": {
+            "Left": "left",
+            "Right": "right"
+        }
+    },
+    "left": {
+        "text": "You have taken the left path and encountered a calm river. Do you want to cross it or follow it?",
+        "options": {
+            "Cross the river": "cross",
+            "Follow the river": "follow"
+        }
+    },
+    "right": {
+        "text": "You have taken the right path and found an old abandoned cabin. Do you want to enter or continue walking?",
+        "options": {
+            "Enter the cabin": "cabin",
+            "Continue walking": "walk"
+        }
+    },
+    "cross": {
+        "text": "You try to cross the river, but it's too strong and you are swept away. Game over.",
+        "options": {
+            "Restart": "start"
+        }
+    },
+    "follow": {
+        "text": "You follow the river and find a bridge. You cross safely and reach a small village. You win!",
+        "options": {
+            "Restart": "start"
+        }
+    },
+    "cabin": {
+        "text": "Inside the cabin, you find treasure and a friendly ghost who guides you out. You win!",
+        "options": {
+            "Restart": "start"
+        }
+    },
+    "walk": {
+        "text": "You continue walking and get lost in the forest. Game over.",
+        "options": {
+            "Restart": "start"
+        }
+    }
+}
+
+def update_game(state):
+    game_div = document.getElementById("game")
+    game_div.innerHTML = ""  # Clear previous content
+
+    # Create and display the current state's text
+    p = document.createElement("p")
+    p.innerHTML = game[state]["text"]
+    game_div.appendChild(p)
+
+    # Create buttons for each available option
+    for option_text, next_state in game[state]["options"].items():
+        btn = document.createElement("button")
+        btn.innerHTML = option_text
+        # Use a lambda to capture next_state and update the game on click
+        btn.onclick = lambda event, ns=next_state: update_game(ns)
+        game_div.appendChild(btn)
+
+# Initialize the game
+update_game("start")
+  </py-script>
+</body>
 </html>
+
