@@ -1,127 +1,236 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Pick Your Path Adventure Game</title>
-  <!-- PyScript CSS and JS -->
-  <link rel="stylesheet" href="https://pyscript.net/latest/pyscript.css" />
-  <script defer src="https://pyscript.net/latest/pyscript.js"></script>
-  <!-- Nice CSS styling -->
+  <meta charset="UTF-8" />
+  <title>AI Pick Your Path (JavaScript)</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background-color: #f0f8ff;
-      color: #333;
       margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(to bottom right, #91EAE4, #86A8E7, #7F7FD5);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+    }
+    .container {
+      background-color: #ffffffcc;
+      border-radius: 12px;
+      max-width: 600px;
+      width: 90%;
+      margin-top: 40px;
       padding: 20px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+      animation: fadeIn 0.8s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
     }
     h1 {
       text-align: center;
-      color: #4CAF50;
-    }
-    #game {
-      max-width: 600px;
-      margin: 20px auto;
-      padding: 20px;
-      background-color: #fff;
-      border-radius: 10px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
-    button {
-      margin: 5px;
-      padding: 10px 15px;
-      font-size: 16px;
-      border: none;
-      border-radius: 5px;
-      background-color: #4CAF50;
-      color: white;
-      cursor: pointer;
-    }
-    button:hover {
-      background-color: #45a049;
+      margin-bottom: 16px;
+      color: #333;
     }
     p {
       font-size: 18px;
       line-height: 1.5;
+      color: #333;
+      margin-bottom: 12px;
+    }
+    button {
+      margin: 5px;
+      padding: 10px 18px;
+      font-size: 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      background-color: #7F7FD5;
+      color: #fff;
+      transition: background-color 0.3s ease;
+    }
+    button:hover {
+      background-color: #6c6cd5;
+    }
+    .generate-btn {
+      background-color: #4CAF50;
+    }
+    .generate-btn:hover {
+      background-color: #45a049;
+    }
+    .outcome {
+      font-style: italic;
+      margin-top: 12px;
+    }
+    .summary {
+      font-weight: bold;
+      margin-top: 16px;
     }
   </style>
 </head>
 <body>
-  <h1>Pick Your Path Adventure Game</h1>
-  <div id="game"></div>
-  
-  <py-script>
-from js import document
+  <div class="container">
+    <h1>AI Pick Your Path (JavaScript)</h1>
+    <div id="storyArea">
+      <p>Click <strong>Generate Story</strong> to begin!</p>
+    </div>
+    <div>
+      <button class="generate-btn" id="generateBtn">Generate Story</button>
+      <button id="summarizeBtn" style="display: none;">Summarize Story</button>
+    </div>
+  </div>
 
-# Define the game states and choices
-game = {
-    "start": {
-        "text": "You are in a dark forest. You see two paths. One leads left, one leads right. Which do you choose?",
-        "options": {
-            "Left": "left",
-            "Right": "right"
-        }
-    },
-    "left": {
-        "text": "You have taken the left path and encountered a calm river. Do you want to cross it or follow it?",
-        "options": {
-            "Cross the river": "cross",
-            "Follow the river": "follow"
-        }
-    },
-    "right": {
-        "text": "You have taken the right path and found an old abandoned cabin. Do you want to enter or continue walking?",
-        "options": {
-            "Enter the cabin": "cabin",
-            "Continue walking": "walk"
-        }
-    },
-    "cross": {
-        "text": "You try to cross the river, but it's too strong and you are swept away. Game over.",
-        "options": {
-            "Restart": "start"
-        }
-    },
-    "follow": {
-        "text": "You follow the river and find a bridge. You cross safely and reach a small village. You win!",
-        "options": {
-            "Restart": "start"
-        }
-    },
-    "cabin": {
-        "text": "Inside the cabin, you find treasure and a friendly ghost who guides you out. You win!",
-        "options": {
-            "Restart": "start"
-        }
-    },
-    "walk": {
-        "text": "You continue walking and get lost in the forest. Game over.",
-        "options": {
-            "Restart": "start"
-        }
+  <script>
+    /* 
+      This line attempts to retrieve the secret from your build environment.
+      When using a tool like Webpack or Vite, ensure you configure it so that
+      process.env.OPENAIAPIKEY is replaced with your GitHub secret value.
+      The || "MY_GITHUB_SECRET_KEY" part is a fallback for testing.
+    */
+    const OPENAI_API_KEY = process.env.OPENAIAPIKEY || "MY_GITHUB_SECRET_KEY";
+
+    let scenario = null;      // The JSON object with introduction, choices, outcomes
+    let chosenOutcome = null; // The final outcome text the user selects
+    let questionCount = 0;    // Count of branching questions presented
+
+    const storyArea = document.getElementById("storyArea");
+    const generateBtn = document.getElementById("generateBtn");
+    const summarizeBtn = document.getElementById("summarizeBtn");
+
+    // 1. Generate a short pick-your-path scenario (one question, two choices)
+    generateBtn.addEventListener("click", async () => {
+      scenario = null;
+      chosenOutcome = null;
+      questionCount = 0;
+
+      storyArea.innerHTML = "<p><em>Generating story, please wait...</em></p>";
+      summarizeBtn.style.display = "none";
+
+      const prompt = `
+      Please create a short "pick your path" scenario with exactly 2 choices, in valid JSON format:
+      {
+        "introduction": "A short introduction to the scenario.",
+        "choices": [
+          {
+            "text": "Label for Choice A",
+            "outcome": "Short outcome for Choice A"
+          },
+          {
+            "text": "Label for Choice B",
+            "outcome": "Short outcome for Choice B"
+          }
+        ]
+      }
+      Be concise.
+      `;
+
+      try {
+        // Call the OpenAI API using the model "gpt-4o mini"
+        const response = await fetch("https://api.openai.com/v1/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${OPENAI_API_KEY}`
+          },
+          body: JSON.stringify({
+            model: "gpt-4o mini",
+            prompt: prompt,
+            max_tokens: 200,
+            temperature: 0.7
+          })
+        });
+
+        const data = await response.json();
+        const rawText = data.choices?.[0]?.text?.trim() || "";
+
+        // Attempt to parse JSON from the rawText
+        scenario = JSON.parse(rawText);
+
+        // Display the introduction and choices
+        displayScenario(scenario);
+      } catch (err) {
+        console.error("Error generating story:", err);
+        storyArea.innerHTML = `<p style="color:red;">Error: ${err}</p>`;
+      }
+    });
+
+    // 2. Display the scenario introduction and choices
+    function displayScenario(scenarioData) {
+      if (!scenarioData) {
+        storyArea.innerHTML = "<p>No scenario data available.</p>";
+        return;
+      }
+      questionCount = 1; // Only one branching question in this scenario
+
+      storyArea.innerHTML = `<p>${scenarioData.introduction}</p>`;
+
+      scenarioData.choices.forEach((choice) => {
+        const btn = document.createElement("button");
+        btn.textContent = choice.text;
+        btn.addEventListener("click", () => {
+          chosenOutcome = choice.outcome;
+          showOutcome(choice.outcome);
+        });
+        storyArea.appendChild(btn);
+      });
     }
-}
 
-def update_game(state):
-    game_div = document.getElementById("game")
-    game_div.innerHTML = ""  # Clear previous content
+    // 3. Show the chosen outcome
+    function showOutcome(outcomeText) {
+      storyArea.innerHTML = `<p class="outcome">You chose: ${outcomeText}</p>`;
+      summarizeBtn.style.display = "inline-block";
+    }
 
-    # Create and display the current state's text
-    p = document.createElement("p")
-    p.innerHTML = game[state]["text"]
-    game_div.appendChild(p)
+    // 4. Summarize the entire story via AI
+    summarizeBtn.addEventListener("click", async () => {
+      if (!scenario || !chosenOutcome) {
+        storyArea.innerHTML += `<p style="color:red;">No story to summarize!</p>`;
+        return;
+      }
 
-    # Create buttons for each available option
-    for option_text, next_state in game[state]["options"].items():
-        btn = document.createElement("button")
-        btn.innerHTML = option_text
-        # Use a lambda to capture next_state and update the game on click
-        btn.onclick = lambda event, ns=next_state: update_game(ns)
-        game_div.appendChild(btn)
+      const fullText = `
+      Scenario Introduction: ${scenario.introduction}
+      Choices: ${scenario.choices.map(c => c.text).join(", ")}
+      User's Outcome: ${chosenOutcome}
+      Number of questions: ${questionCount}
+      `;
 
-# Initialize the game
-update_game("start")
-  </py-script>
+      const summarizePrompt = `
+      Summarize this "pick your path" story in 1-2 sentences.
+      Then note how many branching questions were in the story.
+      ---
+      ${fullText}
+      `;
+
+      try {
+        storyArea.innerHTML += `<p><em>Summarizing story...</em></p>`;
+        summarizeBtn.style.display = "none";
+
+        const response = await fetch("https://api.openai.com/v1/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${OPENAI_API_KEY}`
+          },
+          body: JSON.stringify({
+            model: "gpt-4o mini",
+            prompt: summarizePrompt,
+            max_tokens: 100,
+            temperature: 0.7
+          })
+        });
+
+        const data = await response.json();
+        const summaryText = data.choices?.[0]?.text?.trim() || "No summary available.";
+
+        storyArea.innerHTML += `<p class="summary">Summary: ${summaryText}</p>`;
+      } catch (err) {
+        console.error("Error summarizing story:", err);
+        storyArea.innerHTML += `<p style="color:red;">Error summarizing: ${err}</p>`;
+      }
+    });
+  </script>
 </body>
 </html>
-
